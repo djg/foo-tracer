@@ -1,0 +1,9 @@
+[package]
+name = "foo-tracer"
+version = "0.1.0"
+authors = ["Rust Example <rust-snippet@example.com>"]
+
+[dependencies]
+indicatif = "0.9"
+rand = "0.5"
+rayon = "1.0"
