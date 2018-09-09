@@ -45,10 +45,10 @@ impl Lambertian {
 
 impl Material for Lambertian {
     fn scatter(&self, _: &Ray, hit: &HitRecord) -> Option<(Vec3, Ray)> {
-        let target = hit.p + hit.n + random_in_unit_sphere();
+        let target = hit.point + hit.normal + random_in_unit_sphere();
         let scattered = Ray {
-            point: hit.p,
-            direction: target - hit.p,
+            point: hit.point,
+            direction: target - hit.point,
         };
         let attenuation = self.albedo;
         Some((attenuation, scattered))
@@ -69,13 +69,13 @@ impl Metal {
 
 impl Material for Metal {
     fn scatter(&self, r_in: &Ray, hit: &HitRecord) -> Option<(Vec3, Ray)> {
-        let reflected = reflect(normalized(r_in.direction), hit.n);
+        let reflected = reflect(normalized(r_in.direction), hit.normal);
         let scattered = Ray {
-            point: hit.p,
+            point: hit.point,
             direction: reflected + self.fuzz * random_in_unit_sphere(),
         };
         let attenuation = self.albedo;
-        if dot(scattered.direction, hit.n) > 0. {
+        if dot(scattered.direction, hit.normal) > 0. {
             Some((attenuation, scattered))
         } else {
             None
@@ -96,17 +96,17 @@ impl Dielectric {
 impl Material for Dielectric {
     fn scatter(&self, r_in: &Ray, hit: &HitRecord) -> Option<(Vec3, Ray)> {
         let attenuation = Vec3(1., 1., 1.);
-        let (outward_normal, ni_over_nt, cosine) = if dot(r_in.direction, hit.n) > 0. {
+        let (outward_normal, ni_over_nt, cosine) = if dot(r_in.direction, hit.normal) > 0. {
             (
-                -hit.n,
+                -hit.normal,
                 self.ref_idx,
-                self.ref_idx * dot(r_in.direction, hit.n) / r_in.direction.len(),
+                self.ref_idx * dot(r_in.direction, hit.normal) / r_in.direction.len(),
             )
         } else {
             (
-                hit.n,
+                hit.normal,
                 1. / self.ref_idx,
-                -dot(r_in.direction, hit.n) / r_in.direction.len(),
+                -dot(r_in.direction, hit.normal) / r_in.direction.len(),
             )
         };
         let (refracted, reflect_prob) =
@@ -116,14 +116,14 @@ impl Material for Dielectric {
                 (Vec3(0., 0., 0.), 1.)
             };
         let scattered = if random::<f32>() < reflect_prob {
-            let reflected = reflect(r_in.direction, hit.n);
+            let reflected = reflect(r_in.direction, hit.normal);
             Ray {
-                point: hit.p,
+                point: hit.point,
                 direction: reflected,
             }
         } else {
             Ray {
-                point: hit.p,
+                point: hit.point,
                 direction: refracted,
             }
         };

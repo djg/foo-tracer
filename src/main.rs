@@ -30,7 +30,7 @@ const NS: i32 = 100;
 fn color(r: &Ray, world: &World, depth: i32) -> Vec3 {
     if let Some(hit) = world.hit(r, 0.001, std::f32::MAX) {
         if depth < 50 {
-            if let Some((attenuation, scattered)) = hit.mat.scatter(r, &hit) {
+            if let Some((attenuation, scattered)) = hit.material.scatter(r, &hit) {
                 return attenuation * color(&scattered, world, depth + 1);
             }
         }

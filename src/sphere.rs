@@ -29,18 +29,28 @@ impl Hitable for Sphere {
             let temp = (-b - discriminant) / a;
             if temp < t_max && temp > t_min {
                 let t = temp;
-                let p = r.point_at(t);
-                let n = (p - self.centre) / self.radius;
-                let mat = &*self.material;
-                return Some(HitRecord { t, p, n, mat });
+                let point = r.point_at(t);
+                let normal = (point - self.centre) / self.radius;
+                let material = &*self.material;
+                return Some(HitRecord {
+                    t,
+                    point,
+                    normal,
+                    material,
+                });
             }
             let temp = (-b + discriminant) / a;
             if temp < t_max && temp > t_min {
                 let t = temp;
-                let p = r.point_at(t);
-                let n = (p - self.centre) / self.radius;
-                let mat = &*self.material;
-                return Some(HitRecord { t, p, n, mat });
+                let point = r.point_at(t);
+                let normal = (point - self.centre) / self.radius;
+                let material = &*self.material;
+                return Some(HitRecord {
+                    t,
+                    point,
+                    normal,
+                    material,
+                });
             }
         }
         None

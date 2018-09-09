@@ -2,9 +2,9 @@ use super::*;
 
 pub struct HitRecord<'a> {
     pub t: f32,
-    pub p: Vec3,
-    pub n: Vec3,
-    pub mat: &'a dyn Material,
+    pub point: Vec3,
+    pub normal: Vec3,
+    pub material: &'a dyn Material,
 }
 
 pub trait Hitable {
