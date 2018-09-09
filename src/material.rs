@@ -46,7 +46,10 @@ impl Lambertian {
 impl Material for Lambertian {
     fn scatter(&self, _: &Ray, hit: &HitRecord) -> Option<(Vec3, Ray)> {
         let target = hit.p + hit.n + random_in_unit_sphere();
-        let scattered = Ray(hit.p, target - hit.p);
+        let scattered = Ray {
+            point: hit.p,
+            direction: target - hit.p,
+        };
         let attenuation = self.albedo;
         Some((attenuation, scattered))
     }
@@ -66,10 +69,13 @@ impl Metal {
 
 impl Material for Metal {
     fn scatter(&self, r_in: &Ray, hit: &HitRecord) -> Option<(Vec3, Ray)> {
-        let reflected = reflect(normalized(r_in.direction()), hit.n);
-        let scattered = Ray(hit.p, reflected + self.fuzz * random_in_unit_sphere());
+        let reflected = reflect(normalized(r_in.direction), hit.n);
+        let scattered = Ray {
+            point: hit.p,
+            direction: reflected + self.fuzz * random_in_unit_sphere(),
+        };
         let attenuation = self.albedo;
-        if dot(scattered.direction(), hit.n) > 0. {
+        if dot(scattered.direction, hit.n) > 0. {
             Some((attenuation, scattered))
         } else {
             None
@@ -90,30 +96,36 @@ impl Dielectric {
 impl Material for Dielectric {
     fn scatter(&self, r_in: &Ray, hit: &HitRecord) -> Option<(Vec3, Ray)> {
         let attenuation = Vec3(1., 1., 1.);
-        let (outward_normal, ni_over_nt, cosine) = if dot(r_in.direction(), hit.n) > 0. {
+        let (outward_normal, ni_over_nt, cosine) = if dot(r_in.direction, hit.n) > 0. {
             (
                 -hit.n,
                 self.ref_idx,
-                self.ref_idx * dot(r_in.direction(), hit.n) / r_in.direction().len(),
+                self.ref_idx * dot(r_in.direction, hit.n) / r_in.direction.len(),
             )
         } else {
             (
                 hit.n,
                 1. / self.ref_idx,
-                -dot(r_in.direction(), hit.n) / r_in.direction().len(),
+                -dot(r_in.direction, hit.n) / r_in.direction.len(),
             )
         };
         let (refracted, reflect_prob) =
-            if let Some(refracted) = refract(r_in.direction(), outward_normal, ni_over_nt) {
+            if let Some(refracted) = refract(r_in.direction, outward_normal, ni_over_nt) {
                 (refracted, schlick(cosine, self.ref_idx))
             } else {
                 (Vec3(0., 0., 0.), 1.)
             };
         let scattered = if random::<f32>() < reflect_prob {
-            let reflected = reflect(r_in.direction(), hit.n);
-            Ray(hit.p, reflected)
+            let reflected = reflect(r_in.direction, hit.n);
+            Ray {
+                point: hit.p,
+                direction: reflected,
+            }
         } else {
-            Ray(hit.p, refracted)
+            Ray {
+                point: hit.p,
+                direction: refracted,
+            }
         };
         Some((attenuation, scattered))
     }

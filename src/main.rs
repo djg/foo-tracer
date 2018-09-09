@@ -36,7 +36,7 @@ fn color(r: &Ray, world: &World, depth: i32) -> Vec3 {
         }
         return Vec3(0., 0., 0.);
     } else {
-        let unit_direction = normalized(r.direction());
+        let unit_direction = normalized(r.direction);
         let t = 0.5 * (unit_direction.1 + 1.);
         (1. - t) * Vec3(1., 1., 1.) + t * Vec3(0.5, 0.7, 1.)
     }

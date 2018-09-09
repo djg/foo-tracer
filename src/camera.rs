@@ -54,9 +54,11 @@ impl Camera {
     pub fn ray(&self, u: f32, v: f32) -> Ray {
         let rd = self.lens_radius * random_in_unit_disk();
         let offset = self.u * rd.0 + self.v * rd.1;
-        Ray(
-            self.origin + offset,
-            self.lower_left_corner + u * self.horizontal + v * self.vertical - self.origin - offset,
-        )
+        Ray {
+            point: self.origin + offset,
+            direction: self.lower_left_corner + u * self.horizontal + v * self.vertical
+                - self.origin
+                - offset,
+        }
     }
 }
