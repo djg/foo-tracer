@@ -9,4 +9,5 @@ pub struct HitRecord<'a> {
 
 pub trait Hitable {
     fn hit(&self, r: &Ray, t_min: f32, t_max: f32) -> Option<HitRecord>;
+    fn bbox(&self) -> Option<Aabb>;
 }

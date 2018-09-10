@@ -7,6 +7,7 @@ use rand::prelude::*;
 use rayon::prelude::*;
 use std::{f32, fs::File, io::Write};
 
+mod aabb;
 mod camera;
 mod hitable;
 mod material;
@@ -15,6 +16,7 @@ mod sphere;
 mod vec3;
 mod world;
 
+use aabb::*;
 use camera::*;
 use hitable::*;
 use material::*;
@@ -23,8 +25,10 @@ use sphere::*;
 use vec3::*;
 use world::*;
 
-const NX: i32 = 1280; //400;
-const NY: i32 = 720; //200;
+const NX: i32 = 400;
+const NY: i32 = 200;
+//const NX: i32 = 1280;
+//const NY: i32 = 720;
 const NS: i32 = 100;
 
 fn color(r: &Ray, world: &World, depth: i32) -> Vec3 {
@@ -111,7 +115,7 @@ fn random_scene() -> World {
         1.,
         Box::new(Metal::new(Vec3(0.7, 0.6, 0.5), 0.)),
     )));
-    World { entities }
+    World::new(entities)
 }
 
 fn main() {
@@ -160,8 +164,7 @@ fn main() {
                 pb.inc(1);
 
                 (ir, ig, ib)
-            })
-            .collect_into_vec(&mut row);
+            }).collect_into_vec(&mut row);
         for (r, g, b) in &row {
             writeln!(file, "{} {} {}", r, g, b);
         }

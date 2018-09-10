@@ -55,4 +55,12 @@ impl Hitable for Sphere {
         }
         None
     }
+
+    fn bbox(&self) -> Option<Aabb> {
+        let rrr = Vec3(self.radius, self.radius, self.radius);
+        Some(Aabb {
+            min: self.centre - rrr,
+            max: self.centre + rrr,
+        })
+    }
 }

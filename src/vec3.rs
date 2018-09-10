@@ -118,6 +118,30 @@ impl ::std::ops::Div<f32> for Vec3 {
     }
 }
 
+impl ::std::ops::Index<usize> for Vec3 {
+    type Output = f32;
+
+    fn index(&self, idx: usize) -> &Self::Output {
+        match idx {
+            0 => &self.0,
+            1 => &self.1,
+            2 => &self.2,
+            _ => panic!("Invalid idx"),
+        }
+    }
+}
+
+impl ::std::ops::IndexMut<usize> for Vec3 {
+    fn index_mut(&mut self, idx: usize) -> &mut Self::Output {
+        match idx {
+            0 => &mut self.0,
+            1 => &mut self.1,
+            2 => &mut self.2,
+            _ => panic!("Invalid idx"),
+        }
+    }
+}
+
 impl Vec3 {
     #[inline]
     pub fn squared_len(&self) -> f32 {
