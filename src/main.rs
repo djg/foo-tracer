@@ -118,6 +118,25 @@ fn random_scene() -> World {
     World::new(entities)
 }
 
+fn pixel(cam: &Camera, world: &World, i: i32, j: i32) -> (i32, i32, i32) {
+    let mut col = (0..NS).fold(Vec3(0., 0., 0.), |mut col, _| {
+        let u = (i as f32 + random::<f32>()) / NX as f32;
+        let v = (j as f32 + random::<f32>()) / NY as f32;
+        let r = cam.ray(u, v);
+        col += color(&r, &world, 0);
+        col
+    });
+    col /= NS as f32;
+    // gamma 2
+    col = Vec3(f32::sqrt(col.0), f32::sqrt(col.1), f32::sqrt(col.2));
+
+    let ir = (255.99 * col.0) as i32;
+    let ig = (255.99 * col.1) as i32;
+    let ib = (255.99 * col.2) as i32;
+
+    (ir, ig, ib)
+}
+
 fn main() {
     let mut file = File::create("image.ppm").expect("Failed to open image.ppm");
     writeln!(file, "P3\n{} {}\n255", NX, NY);
@@ -141,32 +160,26 @@ fn main() {
     pb.set_style(
         ProgressStyle::default_bar().template("{elapsed_precise} {wide_bar} {percent}% ({eta})"),
     );
-    let mut row = Vec::with_capacity(NX as usize);
-    for j in (0..NY).rev() {
-        (0..NX)
-            .into_par_iter()
-            .map(|i| {
-                let mut col = (0..NS).fold(Vec3(0., 0., 0.), |mut col, _| {
-                    let u = (i as f32 + random::<f32>()) / NX as f32;
-                    let v = (j as f32 + random::<f32>()) / NY as f32;
-                    let r = cam.ray(u, v);
-                    col += color(&r, &world, 0);
-                    col
-                });
-                col /= NS as f32;
-                // gamma 2
-                col = Vec3(f32::sqrt(col.0), f32::sqrt(col.1), f32::sqrt(col.2));
-
-                let ir = (255.99 * col.0) as i32;
-                let ig = (255.99 * col.1) as i32;
-                let ib = (255.99 * col.2) as i32;
-
+    if cfg!(feature = "go-faster") {
+        let mut row = Vec::with_capacity(NX as usize);
+        for j in (0..NY).rev() {
+            (0..NX)
+                .into_par_iter()
+                .map(|i| {
+                    pb.inc(1);
+                    pixel(&cam, &world, i, j)
+                }).collect_into_vec(&mut row);
+            for (r, g, b) in &row {
+                writeln!(file, "{} {} {}", r, g, b);
+            }
+        }
+    } else {
+        for j in (0..NY).rev() {
+            for i in 0..NX {
+                let (r, g, b) = pixel(&cam, &world, i, j);
+                writeln!(file, "{} {} {}", r, g, b);
                 pb.inc(1);
-
-                (ir, ig, ib)
-            }).collect_into_vec(&mut row);
-        for (r, g, b) in &row {
-            writeln!(file, "{} {} {}", r, g, b);
+            }
         }
     }
     pb.finish_with_message("done");
