@@ -55,9 +55,11 @@ impl Camera {
         let offset = self.right * rd.0 + self.up * rd.1;
         Ray {
             point: self.origin + offset,
-            direction: self.lower_left_corner + u * self.horizontal + v * self.vertical
-                - self.origin
-                - offset,
+            direction: normalized(
+                self.lower_left_corner + u * self.horizontal + v * self.vertical
+                    - self.origin
+                    - offset,
+            ),
         }
     }
 }

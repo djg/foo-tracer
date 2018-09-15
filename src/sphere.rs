@@ -18,30 +18,21 @@ impl Sphere {
 
 impl Hitable for Sphere {
     fn hit(&self, r: &Ray, t_min: f32, t_max: f32) -> Option<HitRecord> {
-        let oc = r.point - self.centre;
-        let a = dot(r.direction, r.direction);
-        let b = dot(oc, r.direction);
-        let c = dot(oc, oc) - self.radius * self.radius;
-        let discriminant = b * b - a * c;
+        let co = self.centre - r.point;
+        let nb = dot(co, r.direction);
+        let c = dot(co, co) - self.radius * self.radius;
+        let discriminant = nb * nb - c;
 
         if discriminant > 0. {
-            let discriminant = f32::sqrt(discriminant);
-            let temp = (-b - discriminant) / a;
-            if temp < t_max && temp > t_min {
-                let t = temp;
-                let point = r.point_at(t);
-                let normal = (point - self.centre) / self.radius;
-                let material = &*self.material;
-                return Some(HitRecord {
-                    t,
-                    point,
-                    normal,
-                    material,
-                });
+            let d = discriminant.sqrt();
+
+            // Try earlier t
+            let mut t = nb - d;
+            if t < t_min {
+                t = nb + d;
             }
-            let temp = (-b + discriminant) / a;
-            if temp < t_max && temp > t_min {
-                let t = temp;
+
+            if t > t_min && t < t_max {
                 let point = r.point_at(t);
                 let normal = (point - self.centre) / self.radius;
                 let material = &*self.material;

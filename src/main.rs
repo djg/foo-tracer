@@ -5,7 +5,7 @@ extern crate rayon;
 use indicatif::{ProgressBar, ProgressStyle};
 use rand::prelude::*;
 use rayon::prelude::*;
-use std::{f32, fs::File, io::Write};
+use std::{f32, fs::File, io::Write, time::Instant};
 
 mod aabb;
 mod camera;
@@ -25,21 +25,37 @@ use sphere::*;
 use vec3::*;
 use world::*;
 
-const NX: i32 = 400;
-const NY: i32 = 200;
-//const NX: i32 = 1280;
-//const NY: i32 = 720;
-const NS: i32 = 100;
+const NX: usize = 400;
+const NY: usize = 200;
+//const NX: usize = 1280;
+//const NY: usize = 720;
+//const NS: usize = 100;
+const NS: usize = 100;
 
-fn color(r: &Ray, world: &World, depth: i32) -> Vec3 {
-    if let Some(hit) = world.hit(r, 0.001, std::f32::MAX) {
+pub struct Stats {
+    pub first_rays: u64,
+    pub bounce_rays: u64,
+    pub miss_rays: u64,
+    pub entity_hit: u64,
+    pub entity_miss: u64,
+}
+
+fn color(r: &Ray, world: &World, depth: i32, stats: &mut Stats) -> Vec3 {
+    if depth == 0 {
+        stats.first_rays += 1;
+    } else {
+        stats.bounce_rays += 1;
+    }
+
+    if let Some(hit) = world.hit(r, 0.001, std::f32::MAX, stats) {
         if depth < 50 {
             if let Some((attenuation, scattered)) = hit.material.scatter(r, &hit) {
-                return attenuation * color(&scattered, world, depth + 1);
+                return attenuation * color(&scattered, world, depth + 1, stats);
             }
         }
         return Vec3(0., 0., 0.);
     } else {
+        stats.miss_rays += 1;
         let unit_direction = normalized(r.direction);
         let t = 0.5 * (unit_direction.1 + 1.);
         (1. - t) * Vec3(1., 1., 1.) + t * Vec3(0.5, 0.7, 1.)
@@ -118,28 +134,26 @@ fn random_scene() -> World {
     World::new(entities)
 }
 
-fn pixel(cam: &Camera, world: &World, i: i32, j: i32) -> (i32, i32, i32) {
-    let mut col = (0..NS).fold(Vec3(0., 0., 0.), |mut col, _| {
+fn pixel(cam: &Camera, world: &World, i: usize, j: usize, stats: &mut Stats) -> u32 {
+    let mut col = Vec3(0., 0., 0.);
+    for _ in 0..NS {
         let u = (i as f32 + random::<f32>()) / NX as f32;
         let v = (j as f32 + random::<f32>()) / NY as f32;
         let r = cam.ray(u, v);
-        col += color(&r, &world, 0);
-        col
-    });
+        col += color(&r, &world, 0, stats);
+    }
     col /= NS as f32;
     // gamma 2
     col = Vec3(f32::sqrt(col.0), f32::sqrt(col.1), f32::sqrt(col.2));
 
-    let ir = (255.99 * col.0) as i32;
-    let ig = (255.99 * col.1) as i32;
-    let ib = (255.99 * col.2) as i32;
+    let ir = (255.99 * col.0) as u32;
+    let ig = (255.99 * col.1) as u32;
+    let ib = (255.99 * col.2) as u32;
 
-    (ir, ig, ib)
+    (ib << 16) | (ig << 8) | ir
 }
 
 fn main() {
-    let mut file = File::create("image.ppm").expect("Failed to open image.ppm");
-    writeln!(file, "P3\n{} {}\n255", NX, NY);
     let world = random_scene();
     let look_from = Vec3(13., 2., 3.);
     let look_at = Vec3(0., 0., 0.);
@@ -156,31 +170,65 @@ fn main() {
         dist_to_focus,
     );
 
-    let pb = ProgressBar::new(NX as u64 * NY as u64);
-    pb.set_style(
-        ProgressStyle::default_bar().template("{elapsed_precise} {wide_bar} {percent}% ({eta})"),
-    );
-    if cfg!(feature = "go-faster") {
-        let mut row = Vec::with_capacity(NX as usize);
-        for j in (0..NY).rev() {
-            (0..NX)
-                .into_par_iter()
-                .map(|i| {
-                    pb.inc(1);
-                    pixel(&cam, &world, i, j)
-                }).collect_into_vec(&mut row);
-            for (r, g, b) in &row {
-                writeln!(file, "{} {} {}", r, g, b);
-            }
+    let mut image = Vec::<u32>::new();
+    image.resize(NX as usize * NY as usize, 0);
+    // let pb = ProgressBar::new(NX as u64 * NY as u64);
+    // pb.set_style(
+    //     ProgressStyle::default_bar().template("{elapsed_precise} {wide_bar} {percent}% ({eta})"),
+    // );
+    let mut stats = Stats {
+        first_rays: 0,
+        bounce_rays: 0,
+        miss_rays: 0,
+        entity_hit: 0,
+        entity_miss: 0,
+    };
+    let start = Instant::now();
+    // if cfg!(feature = "go-faster") {
+    //     for j in (0..NY).rev() {
+    //         image[(NY - 1 - j) * NX..(NY - j) * NX]
+    //             .par_iter_mut()
+    //             .enumerate()
+    //             .for_each(|(i, rgb)| {
+    //                 *rgb = pixel(&cam, &world, i, j, &mut stats);
+    //                 //                    pb.inc(1);
+    //             });
+    //     }
+    // } else {
+    for j in (0..NY).rev() {
+        for i in 0..NX {
+            image[NX * (NY - 1 - j) + i] = pixel(&cam, &world, i, j, &mut stats);
         }
-    } else {
-        for j in (0..NY).rev() {
-            for i in 0..NX {
-                let (r, g, b) = pixel(&cam, &world, i, j);
-                writeln!(file, "{} {} {}", r, g, b);
-                pb.inc(1);
-            }
-        }
+        //            pb.inc(1);
     }
-    pb.finish_with_message("done");
+    // }
+    let duration = Instant::now().duration_since(start);
+
+    let dt = 1_000_000. * duration.as_secs() as f64 + duration.subsec_millis() as f64 * 1000.;
+    println!(
+        "Rays {:.3} Mrays/s:\n  total:  {}\n  first:  {}\n  bounce: {}\n  miss:   {}\n",
+        (stats.first_rays + stats.bounce_rays) as f64 / dt,
+        stats.first_rays + stats.bounce_rays,
+        stats.first_rays,
+        stats.bounce_rays,
+        stats.miss_rays,
+    );
+    println!(
+        "Entities:\n  total: {}\n  hit:   {}\n  miss:  {}\n",
+        stats.entity_hit + stats.entity_miss,
+        stats.entity_hit,
+        stats.entity_miss
+    );
+
+    let mut file = File::create("image.ppm").expect("Failed to open image.ppm");
+    writeln!(file, "P3\n{} {}\n255", NX, NY);
+    for rgb in &image {
+        writeln!(
+            file,
+            "{} {} {}",
+            rgb & 0xff,
+            (rgb >> 8) & 0xffu32,
+            (rgb >> 16) & 0xffu32
+        );
+    }
 }

@@ -99,13 +99,26 @@ impl World {
     }
 }
 
-impl Hitable for World {
-    fn hit(&self, r: &Ray, t_min: f32, t_max: f32) -> Option<HitRecord> {
+impl World {
+    #[cfg(feature = "bvh")]
+    pub fn hit(&self, r: &Ray, t_min: f32, t_max: f32) -> Option<HitRecord> {
         self.hit_bvh(r, t_min, t_max, 0)
     }
 
-    fn bbox(&self) -> Option<Aabb> {
-        None
+    #[cfg(not(feature = "bvh"))]
+    pub fn hit(&self, r: &Ray, t_min: f32, t_max: f32, stats: &mut Stats) -> Option<HitRecord> {
+        let mut result = None;
+        let mut closest_so_far = t_max;
+        for entity in &self.entities {
+            if let Some(hit) = entity.hit(r, t_min, closest_so_far) {
+                stats.entity_hit += 1;
+                closest_so_far = hit.t;
+                result = Some(hit)
+            } else {
+                stats.entity_miss += 1;
+            }
+        }
+        result
     }
 }
 
