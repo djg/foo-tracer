@@ -43,12 +43,12 @@ pub struct Stats {
 }
 
 fn random_scene() -> World {
-    let mut entities: Vec<Box<dyn Hitable>> = Vec::with_capacity(501);
-    entities.push(Box::new(Sphere::new(
+    let mut entities: Vec<Hitable> = Vec::with_capacity(501);
+    entities.push(sphere(
         Vec3(0., -1000., 0.),
         1000.,
         Box::new(lambertian(Vec3(0.5, 0.5, 0.5))),
-    )));
+    ));
 
     for a in -11..11 {
         for b in -11..11 {
@@ -61,7 +61,7 @@ fn random_scene() -> World {
             if (centre - Vec3(4., 0.2, 0.)).len() > 0.9 {
                 if choose_mat < 0.8 {
                     // diffuse
-                    entities.push(Box::new(Sphere::new(
+                    entities.push(sphere(
                         centre,
                         0.2,
                         Box::new(lambertian(Vec3(
@@ -69,10 +69,10 @@ fn random_scene() -> World {
                             random::<f32>() * random::<f32>(),
                             random::<f32>() * random::<f32>(),
                         ))),
-                    )));
+                    ));
                 } else if choose_mat < 0.95 {
                     // metal
-                    entities.push(Box::new(Sphere::new(
+                    entities.push(sphere(
                         centre,
                         0.2,
                         Box::new(metal(
@@ -83,34 +83,26 @@ fn random_scene() -> World {
                             ),
                             0.5 * random::<f32>(),
                         )),
-                    )));
+                    ));
                 } else {
                     // glass
-                    entities.push(Box::new(Sphere::new(
-                        centre,
-                        0.2,
-                        Box::new(dielectric(1.5)),
-                    )));
+                    entities.push(sphere(centre, 0.2, Box::new(dielectric(1.5))));
                 }
             }
         }
     }
 
-    entities.push(Box::new(Sphere::new(
-        Vec3(0., 1., 0.),
-        1.,
-        Box::new(dielectric(1.5)),
-    )));
-    entities.push(Box::new(Sphere::new(
+    entities.push(sphere(Vec3(0., 1., 0.), 1., Box::new(dielectric(1.5))));
+    entities.push(sphere(
         Vec3(-4., 1., 0.),
         1.,
         Box::new(lambertian(Vec3(0.4, 0.2, 0.1))),
-    )));
-    entities.push(Box::new(Sphere::new(
+    ));
+    entities.push(sphere(
         Vec3(4., 1., 0.),
         1.,
         Box::new(metal(Vec3(0.7, 0.6, 0.5), 0.)),
-    )));
+    ));
     World::new(entities)
 }
 

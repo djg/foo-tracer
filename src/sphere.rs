@@ -16,10 +16,8 @@ impl Sphere {
             material,
         }
     }
-}
 
-impl Hitable for Sphere {
-    fn hit(&self, r: &Ray, t_min: f32, t_max: &mut f32) -> bool {
+    pub fn hit(&self, r: &Ray, t_min: f32, t_max: &mut f32) -> bool {
         let co = self.centre - r.point;
         let nb = dot(co, r.direction);
         let c = dot(co, co) - self.radius_sq;
@@ -42,12 +40,12 @@ impl Hitable for Sphere {
         false
     }
 
-    fn hit_record(&self, r: &Ray, t: f32, hit: &mut HitRecord) {
+    pub fn hit_record(&self, r: &Ray, t: f32, hit: &mut HitRecord) {
         hit.point = r.point_at(t);
         hit.normal = normalized(hit.point - self.centre);
     }
 
-    fn bbox(&self) -> Option<Aabb> {
+    pub fn bbox(&self) -> Option<Aabb> {
         let r = self.radius_sq.sqrt();
         Some(Aabb {
             min: self.centre - Vec3(r, r, r),
@@ -55,7 +53,7 @@ impl Hitable for Sphere {
         })
     }
 
-    fn material(&self) -> &Material {
+    pub fn material(&self) -> &Material {
         &self.material
     }
 }

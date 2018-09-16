@@ -11,12 +11,12 @@ enum BvhNode {
 use self::BvhNode::{Branch, Empty, Leaf};
 
 pub struct World {
-    pub entities: Vec<Box<dyn Hitable>>,
+    pub entities: Vec<Hitable>,
     bvh: Vec<BvhNode>,
 }
 
 impl World {
-    pub fn new(entities: Vec<Box<dyn Hitable>>) -> World {
+    pub fn new(entities: Vec<Hitable>) -> World {
         let n = entities.len();
         let mut ids = (0..n).collect::<Vec<usize>>();
         let mut world = World {
