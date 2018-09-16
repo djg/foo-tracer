@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Rust Example <rust-snippet@example.com>"]
 
 [features]
-default = ["go-faster"]
+default = []
 go-faster = []
 bvh = []
 

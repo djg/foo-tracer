@@ -25,8 +25,8 @@ use sphere::*;
 use vec3::*;
 use world::*;
 
-const NX: usize = 400;
-const NY: usize = 200;
+const NX: usize = 200;
+const NY: usize = 100;
 //const NX: usize = 1280;
 //const NY: usize = 720;
 //const NS: usize = 100;
@@ -40,34 +40,12 @@ pub struct Stats {
     pub entity_miss: u64,
 }
 
-fn color(r: &Ray, world: &World, depth: i32, stats: &mut Stats) -> Vec3 {
-    if depth == 0 {
-        stats.first_rays += 1;
-    } else {
-        stats.bounce_rays += 1;
-    }
-
-    if let Some(hit) = world.hit(r, 0.001, std::f32::MAX, stats) {
-        if depth < 50 {
-            if let Some((attenuation, scattered)) = hit.material.scatter(r, &hit) {
-                return attenuation * color(&scattered, world, depth + 1, stats);
-            }
-        }
-        return Vec3(0., 0., 0.);
-    } else {
-        stats.miss_rays += 1;
-        let unit_direction = normalized(r.direction);
-        let t = 0.5 * (unit_direction.1 + 1.);
-        (1. - t) * Vec3(1., 1., 1.) + t * Vec3(0.5, 0.7, 1.)
-    }
-}
-
 fn random_scene() -> World {
     let mut entities: Vec<Box<dyn Hitable>> = Vec::with_capacity(501);
     entities.push(Box::new(Sphere::new(
         Vec3(0., -1000., 0.),
         1000.,
-        Box::new(Lambertian::new(Vec3(0.5, 0.5, 0.5))),
+        Box::new(lambertian(Vec3(0.5, 0.5, 0.5))),
     )));
 
     for a in -11..11 {
@@ -84,7 +62,7 @@ fn random_scene() -> World {
                     entities.push(Box::new(Sphere::new(
                         centre,
                         0.2,
-                        Box::new(Lambertian::new(Vec3(
+                        Box::new(lambertian(Vec3(
                             random::<f32>() * random::<f32>(),
                             random::<f32>() * random::<f32>(),
                             random::<f32>() * random::<f32>(),
@@ -95,7 +73,7 @@ fn random_scene() -> World {
                     entities.push(Box::new(Sphere::new(
                         centre,
                         0.2,
-                        Box::new(Metal::new(
+                        Box::new(metal(
                             Vec3(
                                 0.5 * (1. + random::<f32>()),
                                 0.5 * (1. + random::<f32>()),
@@ -109,7 +87,7 @@ fn random_scene() -> World {
                     entities.push(Box::new(Sphere::new(
                         centre,
                         0.2,
-                        Box::new(Dielectric::new(1.5)),
+                        Box::new(dielectric(1.5)),
                     )));
                 }
             }
@@ -119,17 +97,17 @@ fn random_scene() -> World {
     entities.push(Box::new(Sphere::new(
         Vec3(0., 1., 0.),
         1.,
-        Box::new(Dielectric::new(1.5)),
+        Box::new(dielectric(1.5)),
     )));
     entities.push(Box::new(Sphere::new(
         Vec3(-4., 1., 0.),
         1.,
-        Box::new(Lambertian::new(Vec3(0.4, 0.2, 0.1))),
+        Box::new(lambertian(Vec3(0.4, 0.2, 0.1))),
     )));
     entities.push(Box::new(Sphere::new(
         Vec3(4., 1., 0.),
         1.,
-        Box::new(Metal::new(Vec3(0.7, 0.6, 0.5), 0.)),
+        Box::new(metal(Vec3(0.7, 0.6, 0.5), 0.)),
     )));
     World::new(entities)
 }
@@ -140,7 +118,7 @@ fn pixel(cam: &Camera, world: &World, i: usize, j: usize, stats: &mut Stats) -> 
         let u = (i as f32 + random::<f32>()) / NX as f32;
         let v = (j as f32 + random::<f32>()) / NY as f32;
         let r = cam.ray(u, v);
-        col += color(&r, &world, 0, stats);
+        col += world.color(r, stats);
     }
     col /= NS as f32;
     // gamma 2

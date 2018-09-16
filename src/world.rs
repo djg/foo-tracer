@@ -1,4 +1,5 @@
 use super::*;
+use std::f32;
 
 #[derive(Clone, Copy)]
 enum BvhNode {
@@ -26,6 +27,7 @@ impl World {
         world
     }
 
+    /*
     fn hit_bvh(&self, r: &Ray, t_min: f32, t_max: f32, node_id: usize) -> Option<HitRecord> {
         match self.bvh[node_id] {
             Branch { bbox } => {
@@ -50,7 +52,7 @@ impl World {
             Empty => unreachable!(),
         }
     }
-
+*/
     fn build_bvh(&mut self, node_id: usize, ids: &mut [usize]) {
         let axis = thread_rng().gen_range::<usize>(0, 3);
         ids.sort_unstable_by(|&i, &j| {
@@ -106,19 +108,55 @@ impl World {
     }
 
     #[cfg(not(feature = "bvh"))]
-    pub fn hit(&self, r: &Ray, t_min: f32, t_max: f32, stats: &mut Stats) -> Option<HitRecord> {
-        let mut result = None;
-        let mut closest_so_far = t_max;
-        for entity in &self.entities {
-            if let Some(hit) = entity.hit(r, t_min, closest_so_far) {
+    fn hit(&self, r: &Ray, t_min: f32, t_max: &mut f32, entity: &mut usize, stats: &mut Stats) {
+        for (n, ntt) in self.entities.iter().enumerate() {
+            if ntt.hit(r, t_min, t_max) {
                 stats.entity_hit += 1;
-                closest_so_far = hit.t;
-                result = Some(hit)
+                *entity = n;
             } else {
                 stats.entity_miss += 1;
             }
         }
-        result
+    }
+
+    pub fn color(&self, mut r: Ray, stats: &mut Stats) -> Vec3 {
+        let mut depth = 0;
+        let mut color = Vec3(1., 1., 1.);
+        let mut attenuation = Vec3(1., 1., 1.);
+        let mut hit = HitRecord {
+            normal: Vec3(0., 0., 0.),
+            point: Vec3(0., 0., 0.),
+        };
+
+        while depth < 50 {
+            if depth == 0 {
+                stats.first_rays += 1;
+            } else {
+                stats.bounce_rays += 1;
+            }
+
+            let mut t = std::f32::MAX;
+            let mut entity = !0;
+            self.hit(&r, 0.001, &mut t, &mut entity, stats);
+            if entity != !0 {
+                self.entities[entity].hit_record(&r, t, &mut hit);
+                if self.entities[entity]
+                    .material()
+                    .scatter(&mut r, &mut attenuation, &hit)
+                {
+                    color *= attenuation;
+                } else {
+                    break;
+                }
+            } else {
+                stats.miss_rays += 1;
+                let t = 0.5 * (r.direction.1 + 1.);
+                return (1. - t) * color + t * Vec3(0.5, 0.7, 1.) * color;
+            }
+            depth += 1;
+        }
+
+        Vec3(0., 0., 0.)
     }
 }
 

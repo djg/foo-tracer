@@ -29,10 +29,19 @@ fn schlick(cosine: f32, ref_idx: f32) -> f32 {
     r0 + (1. - r0) * f32::powf(1. - cosine, 5.)
 }
 
+/*
 pub trait Material {
     fn scatter(&self, r_in: &Ray, hit: &HitRecord) -> Option<(Vec3, Ray)>;
 }
+*/
 
+pub enum Material {
+    Lambertian { albedo: Vec3 },
+    Metal { albedo: Vec3, fuzz: f32 },
+    Dielectric { ref_idx: f32 },
+}
+
+/*
 pub struct Lambertian {
     pub albedo: Vec3,
 }
@@ -42,7 +51,13 @@ impl Lambertian {
         Lambertian { albedo }
     }
 }
+*/
 
+pub fn lambertian(albedo: Vec3) -> Material {
+    Material::Lambertian { albedo }
+}
+
+/*
 impl Material for Lambertian {
     fn scatter(&self, _: &Ray, hit: &HitRecord) -> Option<(Vec3, Ray)> {
         let target = hit.point + hit.normal + random_in_unit_sphere();
@@ -66,7 +81,13 @@ impl Metal {
         Metal { albedo, fuzz }
     }
 }
+*/
 
+pub fn metal(albedo: Vec3, fuzz: f32) -> Material {
+    Material::Metal { albedo, fuzz }
+}
+
+/*
 impl Material for Metal {
     fn scatter(&self, r_in: &Ray, hit: &HitRecord) -> Option<(Vec3, Ray)> {
         let reflected = reflect(normalized(r_in.direction), hit.normal);
@@ -92,7 +113,13 @@ impl Dielectric {
         Dielectric { ref_idx }
     }
 }
+*/
 
+pub fn dielectric(ref_idx: f32) -> Material {
+    Material::Dielectric { ref_idx }
+}
+
+/*
 impl Material for Dielectric {
     fn scatter(&self, r_in: &Ray, hit: &HitRecord) -> Option<(Vec3, Ray)> {
         let attenuation = Vec3(1., 1., 1.);
@@ -128,5 +155,73 @@ impl Material for Dielectric {
             }
         };
         Some((attenuation, scattered))
+    }
+}
+*/
+
+impl Material {
+    pub fn scatter(&self, r: &mut Ray, attenuation: &mut Vec3, hit: &HitRecord) -> bool {
+        match *self {
+            Material::Lambertian { ref albedo } => {
+                let target = hit.point + hit.normal + random_in_unit_sphere();
+                let scattered = Ray {
+                    point: hit.point,
+                    direction: target - hit.point,
+                };
+                *attenuation = *albedo;
+                *r = scattered;
+                true
+            }
+            Material::Metal { ref albedo, fuzz } => {
+                let reflected = reflect(normalized(r.direction), hit.normal);
+                let scattered = Ray {
+                    point: hit.point,
+                    direction: reflected + fuzz * random_in_unit_sphere(),
+                };
+                if dot(scattered.direction, hit.normal) > 0. {
+                    *attenuation = *albedo;
+                    *r = scattered;
+                    true
+                } else {
+                    false
+                }
+            }
+            Material::Dielectric { ref_idx } => {
+                *attenuation = Vec3(1., 1., 1.);
+                let (outward_normal, ni_over_nt, cosine) = if dot(r.direction, hit.normal) > 0. {
+                    (
+                        -hit.normal,
+                        ref_idx,
+                        ref_idx * dot(r.direction, hit.normal) / r.direction.len(),
+                    )
+                } else {
+                    (
+                        hit.normal,
+                        1. / ref_idx,
+                        -dot(r.direction, hit.normal) / r.direction.len(),
+                    )
+                };
+                let (refracted, reflect_prob) =
+                    if let Some(refracted) = refract(r.direction, outward_normal, ni_over_nt) {
+                        (refracted, schlick(cosine, ref_idx))
+                    } else {
+                        (Vec3(0., 0., 0.), 1.)
+                    };
+                let scattered = if random::<f32>() < reflect_prob {
+                    let reflected = reflect(r.direction, hit.normal);
+                    Ray {
+                        point: hit.point,
+                        direction: reflected,
+                    }
+                } else {
+                    Ray {
+                        point: hit.point,
+                        direction: refracted,
+                    }
+                };
+                *r = scattered;
+                true
+            }
+        }
     }
 }
