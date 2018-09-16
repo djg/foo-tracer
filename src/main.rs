@@ -38,6 +38,8 @@ pub struct Stats {
     pub miss_rays: u64,
     pub entity_hit: u64,
     pub entity_miss: u64,
+    pub aabb_hit: u64,
+    pub aabb_miss: u64,
 }
 
 fn random_scene() -> World {
@@ -160,6 +162,8 @@ fn main() {
         miss_rays: 0,
         entity_hit: 0,
         entity_miss: 0,
+        aabb_hit: 0,
+        aabb_miss: 0,
     };
     let start = Instant::now();
     // if cfg!(feature = "go-faster") {
@@ -190,6 +194,12 @@ fn main() {
         stats.first_rays,
         stats.bounce_rays,
         stats.miss_rays,
+    );
+    println!(
+        "AABBs:\n  total: {}\n  hit:   {}\n  miss:  {}\n",
+        stats.aabb_hit + stats.aabb_miss,
+        stats.aabb_hit,
+        stats.aabb_miss
     );
     println!(
         "Entities:\n  total: {}\n  hit:   {}\n  miss:  {}\n",

@@ -1,5 +1,5 @@
 use super::*;
-use std::f32;
+use std::{f32, mem};
 
 #[derive(Clone, Copy)]
 enum BvhNode {
@@ -27,32 +27,6 @@ impl World {
         world
     }
 
-    /*
-    fn hit_bvh(&self, r: &Ray, t_min: f32, t_max: f32, node_id: usize) -> Option<HitRecord> {
-        match self.bvh[node_id] {
-            Branch { bbox } => {
-                if bbox.hit(r, t_min, t_max) {
-                    let hit_left = self.hit_bvh(r, t_min, t_max, 2 * node_id + 1);
-                    let hit_right = self.hit_bvh(r, t_min, t_max, 2 * node_id + 2);
-                    match (hit_left, hit_right) {
-                        (Some(hl), Some(hr)) => if hl.t < hr.t {
-                            Some(hl)
-                        } else {
-                            Some(hr)
-                        },
-                        (Some(hl), None) => Some(hl),
-                        (None, Some(hr)) => Some(hr),
-                        (None, None) => None,
-                    }
-                } else {
-                    None
-                }
-            }
-            Leaf { entity } => self.entities[entity].hit(r, t_min, t_max),
-            Empty => unreachable!(),
-        }
-    }
-*/
     fn build_bvh(&mut self, node_id: usize, ids: &mut [usize]) {
         let axis = thread_rng().gen_range::<usize>(0, 3);
         ids.sort_unstable_by(|&i, &j| {
@@ -103,8 +77,39 @@ impl World {
 
 impl World {
     #[cfg(feature = "bvh")]
-    pub fn hit(&self, r: &Ray, t_min: f32, t_max: f32) -> Option<HitRecord> {
-        self.hit_bvh(r, t_min, t_max, 0)
+    pub fn hit(&self, r: &Ray, t_min: f32, t_max: &mut f32, entity: &mut usize, stats: &mut Stats) {
+        let mut top = 0;
+        let mut visit: [u32; 32] = unsafe { mem::uninitialized() };
+        visit[top] = 0;
+        top += 1;
+
+        while top > 0 {
+            assert!(top > 0 && top < 32);
+            top -= 1;
+            let node_id = visit[top];
+            match self.bvh[node_id as usize] {
+                Branch { bbox } => {
+                    if bbox.hit(r, t_min, *t_max) {
+                        assert!(top < 30);
+                        visit[top] = 2 * node_id + 2;
+                        visit[top + 1] = 2 * node_id + 1;
+                        top += 2;
+                        stats.aabb_hit += 1;
+                    } else {
+                        stats.aabb_miss += 1;
+                    }
+                }
+                Leaf { entity: n } => {
+                    if self.entities[n].hit(r, t_min, t_max) {
+                        stats.entity_hit += 1;
+                        *entity = n;
+                    } else {
+                        stats.entity_miss += 1;
+                    }
+                }
+                Empty => unreachable!(),
+            }
+        }
     }
 
     #[cfg(not(feature = "bvh"))]
